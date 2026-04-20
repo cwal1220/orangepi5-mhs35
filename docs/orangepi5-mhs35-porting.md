@@ -258,6 +258,16 @@ grep -n -A6 -B1 'ADS7846' /proc/bus/input/devices
 
 - Pulled `goodtft/LCD-show` and inspected the actual `MHS35-show` script.
 - The script itself is Raspberry Pi-specific:
+
+## 2026-04-20 LCD refresh retest
+
+- Rechecked the vendor documentation for the MHS3528 module:
+  - the wiki advertises support for up to `125MHz` SPI input
+  - it also claims Raspberry Pi refresh around `50Hz`
+- Updated the Orange Pi 5 overlay LCD node to match the more aggressive Raspberry Pi profile more closely:
+  - `spi-max-frequency = <115000000>`
+  - `fps = <50>`
+- Next verification step is to install the updated overlay on the Orange Pi, reboot, and confirm what the `fb_ili9486` driver actually accepts at runtime.
   - copies `usr/mhs35-overlay.dtb` into `/boot/overlays/`
   - writes Raspberry Pi `/boot/config.txt`
   - enables `dtparam=spi=on`

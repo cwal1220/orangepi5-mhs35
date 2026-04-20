@@ -59,11 +59,11 @@
       mhs35_lcd: ili9486@1 {
         compatible = "ilitek,ili9486";
         reg = <1>;
-        spi-max-frequency = <32000000>;
+        spi-max-frequency = <115000000>;
         txbuflen = <32768>;
         rotate = <90>;
         bgr = <0>;
-        fps = <30>;
+        fps = <50>;
         buswidth = <8>;
         regwidth = <16>;
 
