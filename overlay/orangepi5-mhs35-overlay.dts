@@ -1,0 +1,109 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+  compatible = "xunlong,orangepi-5", "rockchip,rk3588s";
+
+  fragment@0 {
+    target = <&spi4>;
+    __overlay__ {
+      status = "okay";
+      pinctrl-names = "default";
+      pinctrl-0 = <&spi4m0_pins &spi4m0_cs1 &mhs35_pins>;
+
+      /*
+       * Use GPIO-backed CS for chip select 0 on physical pin 26,
+       * and native CS1 for the LCD on physical pin 24.
+       */
+      cs-gpios = <&gpio1 3 1>, <0>;
+
+      spi_dev@1 {
+        status = "disabled";
+      };
+
+      mhs35_ts: ads7846@0 {
+        compatible = "ti,tsc2046";
+        reg = <0>;
+        spi-max-frequency = <500000>;
+
+        /*
+         * Stock IRQ-driven ads7846 probing was unreliable on this setup, so
+         * the out-of-tree ads7846_poll driver binds to the same node by using
+         * driver_override. Keep the tuning values here so users can recalibrate
+         * by editing one DTS file instead of patching the module source.
+         */
+        interrupt-parent = <&gpio4>;
+        interrupts = <10 2>;
+        pendown-gpio = <&gpio4 10 1>;
+
+        ti,x-plate-ohms = /bits/ 16 <60>;
+        ti,pressure-max = /bits/ 16 <255>;
+        ti,poll-period-ms = <10>;
+        ti,poll-sample-count = <5>;
+        ti,poll-pressure-on = <80>;
+        ti,poll-pressure-off = <40>;
+        ti,x-min = <280>;
+        ti,x-max = <3760>;
+        ti,y-min = <300>;
+        ti,y-max = <3886>;
+        touchscreen-size-x = <480>;
+        touchscreen-size-y = <320>;
+        ti,cal-x-num = <9701>;
+        ti,cal-x-den = <10000>;
+        ti,cal-x-off = <6>;
+        ti,cal-y-num = <9304>;
+        ti,cal-y-den = <10000>;
+        ti,cal-y-off = <9>;
+      };
+
+      mhs35_lcd: ili9486@1 {
+        compatible = "ilitek,ili9486";
+        reg = <1>;
+        spi-max-frequency = <32000000>;
+        txbuflen = <32768>;
+        rotate = <90>;
+        bgr = <0>;
+        fps = <30>;
+        buswidth = <8>;
+        regwidth = <16>;
+
+        reset-gpios = <&gpio2 28 1>;
+        dc-gpios = <&gpio1 26 0>;
+        debug = <0>;
+
+        init = <
+          0x10000f1 0x36 0x04 0x00 0x3c 0x0f 0x8f
+          0x10000f2 0x18 0xa3 0x12 0x02 0xb2 0x12 0xff 0x10 0x00
+          0x10000f8 0x21 0x04
+          0x10000f9 0x00 0x08
+          0x1000036 0x08
+          0x10000b4 0x00
+          0x10000c1 0x41
+          0x10000c5 0x00 0x91 0x80 0x00
+          0x10000e0 0x0f 0x1f 0x1c 0x0c 0x0f 0x08 0x48 0x98 0x37 0x0a 0x13 0x04 0x11 0x0d 0x00
+          0x10000e1 0x0f 0x32 0x2e 0x0b 0x0d 0x05 0x47 0x75 0x37 0x06 0x10 0x03 0x24 0x20 0x00
+          0x100003a 0x55
+          0x1000011
+          0x1000036 0x28
+          0x20000ff
+          0x1000029
+        >;
+      };
+    };
+  };
+
+  fragment@1 {
+    target = <&pinctrl>;
+    __overlay__ {
+      mhs35 {
+        mhs35_pins: mhs35-pins {
+          rockchip,pins =
+            <1 3 0 &pcfg_pull_none>,
+            <1 26 0 &pcfg_pull_none>,
+            <2 28 0 &pcfg_pull_none>,
+            <4 10 0 &pcfg_pull_up>;
+        };
+      };
+    };
+  };
+};
