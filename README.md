@@ -23,6 +23,8 @@ This repo keeps the Orange Pi specific pieces out of `openpilot`:
   - standalone Qt app that collects target/observed calibration pairs
 - `scripts/`
   - helper scripts to build, load, and run the tools
+- `bench/`
+  - direct framebuffer benchmark for checking full-screen update throughput
 - `samples/`
   - archived reference code that was previously tried inside `openpilot`
 - `docs/`
@@ -69,6 +71,14 @@ input device named `ADS7846 Poll Touchscreen` after `ads7846_poll` is loaded.
    ./scripts/build-qt-tools.sh
    ./scripts/run-touch-debug.sh
    ```
+
+Optional: build and run the framebuffer benchmark that hammers `/dev/fb1` with
+full-screen pattern changes and reports the achieved loop rate:
+
+```bash
+./scripts/build-fb-bench.sh
+./scripts/run-fb-bench.sh
+```
 
 If the run scripts cannot auto-detect the correct device, override them:
 
