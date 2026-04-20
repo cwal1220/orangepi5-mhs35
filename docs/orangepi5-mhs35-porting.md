@@ -268,6 +268,13 @@ grep -n -A6 -B1 'ADS7846' /proc/bus/input/devices
   - `spi-max-frequency = <115000000>`
   - `fps = <50>`
 - Next verification step is to install the updated overlay on the Orange Pi, reboot, and confirm what the `fb_ili9486` driver actually accepts at runtime.
+- Runtime verification on the Orange Pi after the retest:
+  - `fb_ili9486` accepted `fps = 50`
+  - but the LCD bus still came up at `spi4.1 at 50 MHz`
+  - a direct `/dev/fb1` full-screen benchmark measured only about `17.7 FPS`
+- Because the aggressive profile added uncertainty during later UI checks and did not deliver real 50 FPS updates, the overlay was returned to the last known stable display settings:
+  - `spi-max-frequency = <32000000>`
+  - `fps = <30>`
   - copies `usr/mhs35-overlay.dtb` into `/boot/overlays/`
   - writes Raspberry Pi `/boot/config.txt`
   - enables `dtparam=spi=on`
