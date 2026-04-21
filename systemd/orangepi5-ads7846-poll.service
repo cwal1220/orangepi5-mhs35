@@ -1,0 +1,14 @@
+[Unit]
+Description=Bind ads7846_poll touchscreen driver for Orange Pi 5 MHS35
+DefaultDependencies=no
+After=local-fs.target systemd-modules-load.service
+Before=multi-user.target
+ConditionPathExists=/sys/bus/spi/devices/spi4.0
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/orangepi5-load-ads7846-poll.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

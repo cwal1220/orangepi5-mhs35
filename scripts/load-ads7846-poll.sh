@@ -5,7 +5,17 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MOD_DIR="$ROOT_DIR/kernel/ads7846_poll"
 SPI_DEV="${SPI_DEV:-spi4.0}"
 DRIVER="${DRIVER:-ads7846_poll}"
-MODULE="$MOD_DIR/ads7846_poll.ko"
+LOCAL_MODULE="$MOD_DIR/ads7846_poll.ko"
+INSTALLED_MODULE="/lib/modules/$(uname -r)/extra/ads7846_poll.ko"
+MODULE="${MODULE:-}"
+
+if [[ -z "$MODULE" ]]; then
+  if [[ -f "$LOCAL_MODULE" ]]; then
+    MODULE="$LOCAL_MODULE"
+  else
+    MODULE="$INSTALLED_MODULE"
+  fi
+fi
 
 if [[ $EUID -ne 0 ]]; then
   echo "Run this script as root." >&2
@@ -18,7 +28,7 @@ if [[ ! -e "/sys/bus/spi/devices/$SPI_DEV" ]]; then
 fi
 
 if [[ ! -f "$MODULE" ]]; then
-  echo "Missing $MODULE. Run ./scripts/build-kernel-module.sh first." >&2
+  echo "Missing $MODULE. Build the module first or install it into $INSTALLED_MODULE." >&2
   exit 1
 fi
 

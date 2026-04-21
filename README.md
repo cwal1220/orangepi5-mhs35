@@ -1,15 +1,17 @@
 # Orange Pi 5 MHS35
 
-Standalone bring-up repository for the GoodTFT/Waveshare-style `MHS-3.5inch RPi Display`
+Bring-up repository for the GoodTFT/Waveshare-style `MHS-3.5inch RPi Display`
 on Orange Pi 5.
 
-This repo keeps the Orange Pi specific pieces out of `openpilot`:
+This repo now keeps only the Orange Pi specific LCD and touch pieces:
 
-- display overlay for the ILI9486 SPI LCD
+- Orange Pi 5 display overlay for the ILI9486 SPI LCD
 - polling kernel driver for the XPT2046/ADS7846 touch controller
 - standalone Qt touch debug and calibration tools
-- helper scripts for building and running the tools
-- porting notes collected during bring-up
+- helper scripts for building, loading, and auto-starting the touch driver
+- framebuffer benchmark and porting notes
+
+The actual product UI is intended to live in the `openpilot` repository.
 
 ## Layout
 
@@ -22,11 +24,11 @@ This repo keeps the Orange Pi specific pieces out of `openpilot`:
 - `qt/touch_calibrate/`
   - standalone Qt app that collects target/observed calibration pairs
 - `scripts/`
-  - helper scripts to build, load, and run the tools
+  - helper scripts to build, load, and auto-start the driver and tools
+- `systemd/`
+  - reference unit for touch-driver autoload at boot
 - `bench/`
   - direct framebuffer benchmark for checking full-screen update throughput
-- `samples/`
-  - archived reference code that was previously tried inside `openpilot`
 - `docs/`
   - working notes and investigation history
 
@@ -65,11 +67,17 @@ input device named `ADS7846 Poll Touchscreen` after `ads7846_poll` is loaded.
    sudo ./scripts/load-ads7846-poll.sh
    ```
 
-3. Build the Qt tools and launch the touch visualizer:
+3. Build the Qt touch tools:
 
    ```bash
    ./scripts/build-qt-tools.sh
+   ```
+
+4. Launch the touch visualizer or calibration tool:
+
+   ```bash
    ./scripts/run-touch-debug.sh
+   ./scripts/run-touch-calibrate.sh
    ```
 
 Optional: build and run the framebuffer benchmark that hammers `/dev/fb1` with
@@ -86,7 +94,7 @@ If the run scripts cannot auto-detect the correct device, override them:
 FB_DEVICE=/dev/fb1 TOUCH_DEVICE=/dev/input/event8 ./scripts/run-touch-debug.sh
 ```
 
-## Qt tools
+## Touch tools
 
 Build both Qt tools:
 
@@ -106,17 +114,20 @@ Run the calibration collector:
 ./scripts/run-touch-calibrate.sh
 ```
 
+On this Orange Pi 5 setup, the Qt `linuxfb` path often needs elevated access to
+the active tty/framebuffer. The Qt launchers therefore default to re-execing
+themselves through `sudo -E`. Set `TOUCH_UI_USE_SUDO=0` if you already launch
+from a privileged tty or want to debug the non-root path explicitly.
+
+`run-touch-debug.sh` and `run-touch-calibrate.sh` try to auto-load
+`ads7846_poll` before they fail, but they still stop if no touchscreen event
+node becomes available because those apps require active touch input.
+
 By default the run scripts:
 
 - use framebuffer `/dev/fb1`
 - auto-detect the touchscreen input event node by name
 - fall back to a `/dev/input/by-path/*spi*event` node if needed
-
-Override them manually if needed:
-
-```bash
-FB_DEVICE=/dev/fb1 TOUCH_DEVICE=/dev/input/event8 ./scripts/run-touch-debug.sh
-```
 
 ## Kernel driver
 
@@ -132,43 +143,45 @@ Load and bind it to `spi4.0`:
 sudo ./scripts/load-ads7846-poll.sh
 ```
 
-This driver exists because the touch controller answers on SPI, but the
-`TP_IRQ`/pendown path does not behave reliably enough for the stock
-`ads7846` interrupt-driven driver on this Orange Pi 5 setup.
+`load-ads7846-poll.sh` prefers the locally built module from
+`kernel/ads7846_poll/ads7846_poll.ko`, but it can also use an installed copy at
+`/lib/modules/$(uname -r)/extra/ads7846_poll.ko`.
 
-`load-ads7846-poll.sh` unbinds the stock driver, binds `spi4.0` to
-`ads7846_poll`, and then clears `driver_override` again so future rebinds are
-not pinned accidentally.
+## Boot autoload
 
-## Overlay
-
-The overlay source is in:
-
-```text
-overlay/orangepi5-mhs35-overlay.dts
-```
-
-Compile it with:
+To make the touch driver come up automatically after boot:
 
 ```bash
-dtc -@ -I dts -O dtb -o orangepi5-mhs35-overlay.dtbo overlay/orangepi5-mhs35-overlay.dts
+./scripts/build-kernel-module.sh
+sudo ./scripts/install-touch-autoload.sh
 ```
 
-Then install it to `/boot/overlay-user/` and enable it from `/boot/armbianEnv.txt`.
+This installs:
 
-The touch node also carries the current polling and calibration values used by
-`ads7846_poll`, including:
+- `ads7846_poll.ko` into `/lib/modules/$(uname -r)/extra/`
+- a reusable loader at `/usr/local/sbin/orangepi5-load-ads7846-poll.sh`
+- a systemd unit at `/etc/systemd/system/orangepi5-ads7846-poll.service`
 
-- raw min/max ranges
-- polling thresholds
-- final X/Y calibration coefficients
+It then enables and starts the service immediately.
 
-That means recalibration can be done by editing the DTS instead of recompiling
-the driver.
+You can inspect it with:
+
+```bash
+systemctl status orangepi5-ads7846-poll.service
+```
+
+The reference unit file shipped in this repo lives at:
+
+```text
+systemd/orangepi5-ads7846-poll.service
+```
 
 ## Notes
 
-The detailed bring-up log is in:
+- The LCD panel is fixed at `480x320` through the current `fb_ili9486` path.
+- The polling driver is used because the stock IRQ-based `ads7846` path did not
+  produce reliable touch events on this Orange Pi 5 setup.
+- Porting history and experiment notes are kept in:
 
 ```text
 docs/orangepi5-mhs35-porting.md
